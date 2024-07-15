@@ -1,0 +1,32 @@
+spring:
+  # Nombre de la aplicación Spring Boot
+  application:
+    name: Desafio Foro Melissa
+  
+  # Configuración del origen de datos (DataSource)
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/api  # URL de la base de datos MySQL
+    username: root  # Usuario de la base de datos
+    password: password  # Contraseña de la base de datos
+    
+    # Configuración de HikariCP para el pool de conexiones
+    hikari:
+      maximum-pool-size: 10  # Tamaño máximo del pool de conexiones
+      minimum-idle: 5  # Número mínimo de conexiones inactivas en el pool
+      idle-timeout: 30000  # Tiempo máximo en milisegundos que una conexión puede estar inactiva antes de ser cerrada
+      connection-timeout: 20000  # Tiempo máximo en milisegundos para esperar una nueva conexión
+      max-lifetime: 1800000  # Tiempo máximo en milisegundos que una conexión puede estar en el pool
+      
+  # Configuración de JPA (Java Persistence API)
+  jpa:
+    hibernate:
+      ddl-auto: update  # Estrategia para crear y actualizar el esquema de la base de datos (en este caso, actualizar)
+      show-sql: true  # Mostrar consultas SQL generadas por Hibernate en la consola
+      format_sql: true  # Formatear consultas SQL mostradas en la consola para una mejor legibilidad
+      open-in-view: false  # Controla si se debe mantener una sesión de Hibernate abierta para todo el ciclo de vida de la vista
+  
+  # Configuración del servidor
+  server:
+    error:
+      include-stacktrace: never  # Controla cuándo incluir la traza de la pila en las respuestas de error

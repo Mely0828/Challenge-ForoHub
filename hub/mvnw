@@ -1,0 +1,221 @@
+#!/bin/sh
+# ----------------------------------------------------------------------------
+# Licenciado a la Apache Software Foundation (ASF) bajo uno o más acuerdos de licencia de colaborador. 
+# Consulte el archivo NOTICE distribuido con este trabajo para obtener información adicional sobre la propiedad de los derechos de autor. 
+# La ASF licencia este archivo bajo la Licencia Apache, Versión 2.0 (la "Licencia"); no puede usar este archivo excepto de conformidad con la Licencia. 
+# Puede obtener una copia de la Licencia en
+#
+#    https://www.apache.org/licenses/LICENSE-2.0
+#
+# A menos que la ley aplicable lo requiera o se acuerde por escrito, el software distribuido bajo la Licencia se distribuye "TAL CUAL", 
+# SIN GARANTÍAS NI CONDICIONES DE NINGÚN TIPO, ya sean expresas o implícitas. Consulte la Licencia para conocer el idioma específico que rige los permisos y limitaciones bajo la Licencia.
+# ----------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------
+# Script de inicio del Apache Maven Wrapper, versión 3.3.2
+#
+# Variables de entorno opcionales
+# -------------------------------
+#   JAVA_HOME - ubicación del directorio principal de un JDK, necesario cuando se descarga Maven a través de la fuente de Java
+#   MVNW_REPOURL - URL base del repositorio para descargar la distribución de Maven
+#   MVNW_USERNAME/MVNW_PASSWORD - usuario y contraseña para descargar Maven
+#   MVNW_VERBOSE - true: habilitar registro detallado; debug: rastrear el script mvnw; otros: silenciar la salida
+# ----------------------------------------------------------------------------
+
+# Configuración para salir en caso de error, uso de variables no definidas, o errores en tuberías
+set -euf
+[ "${MVNW_VERBOSE-}" != debug ] || set -x
+
+# Soporte específico del sistema operativo.
+native_path() { printf %s\\n "$1"; }
+case "$(uname)" in
+CYGWIN* | MINGW*)
+  [ -z "${JAVA_HOME-}" ] || JAVA_HOME="$(cygpath --unix "$JAVA_HOME")"
+  native_path() { cygpath --path --windows "$1"; }
+  ;;
+esac
+
+# Configuración de JAVACMD y JAVACCMD
+set_java_home() {
+  # Para Cygwin y MinGW, asegurarse de que las rutas estén en formato Unix antes de tocar nada
+  if [ -n "${JAVA_HOME-}" ]; then
+    if [ -x "$JAVA_HOME/jre/sh/java" ]; then
+      # El JDK de IBM en AIX usa ubicaciones extrañas para los ejecutables
+      JAVACMD="$JAVA_HOME/jre/sh/java"
+      JAVACCMD="$JAVA_HOME/jre/sh/javac"
+    else
+      JAVACMD="$JAVA_HOME/bin/java"
+      JAVACCMD="$JAVA_HOME/bin/javac"
+
+      if [ ! -x "$JAVACMD" ] || [ ! -x "$JAVACCMD" ]; then
+        echo "La variable de entorno JAVA_HOME no está definida correctamente, por lo que mvnw no puede ejecutarse." >&2
+        echo "JAVA_HOME está configurado en \"$JAVA_HOME\", pero \"\$JAVA_HOME/bin/java\" o \"\$JAVA_HOME/bin/javac\" no existen." >&2
+        return 1
+      fi
+    fi
+  else
+    JAVACMD="$(
+      'set' +e
+      'unset' -f command 2>/dev/null
+      'command' -v java
+    )" || :
+    JAVACCMD="$(
+      'set' +e
+      'unset' -f command 2>/dev/null
+      'command' -v javac
+    )" || :
+
+    if [ ! -x "${JAVACMD-}" ] || [ ! -x "${JAVACCMD-}" ]; entonces
+      echo "El comando java/javac no existe en PATH ni JAVA_HOME está configurado, por lo que mvnw no puede ejecutarse." >&2
+      return 1
+    fi
+  fi
+}
+
+# Hash de cadena como Java String::hashCode
+hash_string() {
+  str="${1:-}" h=0
+  while [ -n "$str" ]; do
+    char="${str%"${str#?}"}"
+    h=$(((h * 31 + $(LC_CTYPE=C printf %d "'$char")) % 4294967296))
+    str="${str#?}"
+  done
+  printf %x\\n $h
+}
+
+verbose() { :; }
+[ "${MVNW_VERBOSE-}" != true ] || verbose() { printf %s\\n "${1-}"; }
+
+die() {
+  printf %s\\n "$1" >&2
+  exit 1
+}
+
+trim() {
+  # MWRAPPER-139:
+  #   Elimina espacios en blanco al principio y al final, retornos de carro, tabulaciones y saltos de línea.
+  #   Necesario para eliminar secuencias de nuevas líneas mal interpretadas al ejecutarse en entornos más
+  #   exóticos como mingw bash en Windows.
+  printf "%s" "${1}" | tr -d '[:space:]'
+}
+
+# Analiza distributionUrl y distributionSha256Sum opcional, requiere .mvn/wrapper/maven-wrapper.properties
+while IFS="=" read -r key value; do
+  case "${key-}" in
+  distributionUrl) distributionUrl=$(trim "${value-}") ;;
+  distributionSha256Sum) distributionSha256Sum=$(trim "${value-}") ;;
+  esac
+done <"${0%/*}/.mvn/wrapper/maven-wrapper.properties"
+[ -n "${distributionUrl-}" ] || die "no se puede leer la propiedad distributionUrl en ${0%/*}/.mvn/wrapper/maven-wrapper.properties"
+
+case "${distributionUrl##*/}" in
+maven-mvnd-*bin.*)
+  MVN_CMD=mvnd.sh _MVNW_REPO_PATTERN=/maven/mvnd/
+  case "${PROCESSOR_ARCHITECTURE-}${PROCESSOR_ARCHITEW6432-}:$(uname -a)" en
+  *AMD64:CYGWIN* | *AMD64:MINGW*) distributionPlatform=windows-amd64 ;;
+  :Darwin*x86_64) distributionPlatform=darwin-amd64 ;;
+  :Darwin*arm64) distributionPlatform=darwin-aarch64 ;;
+  :Linux*x86_64*) distributionPlatform=linux-amd64 ;;
+  *)
+    echo "No se puede detectar la plataforma nativa para mvnd en $(uname)-$(uname -m), use la versión pura de java" >&2
+    distributionPlatform=linux-amd64
+    ;;
+  esac
+  distributionUrl="${distributionUrl%-bin.*}-$distributionPlatform.zip"
+  ;;
+maven-mvnd-*) MVN_CMD=mvnd.sh _MVNW_REPO_PATTERN=/maven/mvnd/ ;;
+*) MVN_CMD="mvn${0##*/mvnw}" _MVNW_REPO_PATTERN=/org/apache/maven/ ;;
+esac
+
+# Aplicar MVNW_REPOURL y calcular MAVEN_HOME
+# Patrón del directorio home de Maven: ~/.m2/wrapper/dists/{apache-maven-<version>,maven-mvnd-<version>-<platform>}/<hash>
+[ -z "${MVNW_REPOURL-}" ] || distributionUrl="$MVNW_REPOURL$_MVNW_REPO_PATTERN${distributionUrl#*"$_MVNW_REPO_PATTERN"}"
+distributionUrlName="${distributionUrl##*/}"
+distributionUrlNameMain="${distributionUrlName%.*}"
+distributionUrlNameMain="${distributionUrlNameMain%-bin}"
+MAVEN_USER_HOME="${MAVEN_USER_HOME:-${HOME}/.m2}"
+MAVEN_HOME="${MAVEN_USER_HOME}/wrapper/dists/${distributionUrlNameMain-}/$(hash_string "$distributionUrl")"
+
+exec_maven() {
+  unset MVNW_VERBOSE MVNW_USERNAME MVNW_PASSWORD MVNW_REPOURL || :
+  exec "$MAVEN_HOME/bin/$MVN_CMD" "$@" || die "no se puede ejecutar $MAVEN_HOME/bin/$MVN_CMD"
+}
+
+if [ -d "$MAVEN_HOME" ]; then
+  verbose "se encontró MAVEN_HOME existente en $MAVEN_HOME"
+  exec_maven "$@"
+fi
+
+case "${distributionUrl-}" en
+*?-bin.zip | *?maven-mvnd-?*-?*.zip) ;;
+*) die "distributionUrl no es válido, debe coincidir con *-bin.zip o maven-mvnd-*.zip, pero se encontró '${distributionUrl-}'" ;;
+esac
+
+# Preparar directorio temporal
+if TMP_DOWNLOAD_DIR="$(mktemp -d)" && [ -d "$TMP_DOWNLOAD_DIR" ]; entonces
+  clean() { rm -rf -- "$TMP_DOWNLOAD_DIR"; }
+  trap clean HUP INT TERM EXIT
+else
+  die "no se puede crear directorio temporal"
+fi
+
+mkdir -p -- "${MAVEN_HOME%/*}"
+
+# Descargar e instalar Apache Maven
+verbose "No se pudo encontrar MAVEN_HOME, descargando e instalando ..."
+verbose "Descargando de: $distributionUrl"
+verbose "Descargando a: $TMP_DOWNLOAD_DIR/$distributionUrlName"
+
+# Seleccionar .zip o .tar.gz
+if ! command -v unzip >/dev/null; then
+  distributionUrl="${distributionUrl%.zip}.tar.gz"
+  distributionUrlName="${distributionUrl##*/}"
+fi
+
+# Opción de verbose
+__MVNW_QUIET_WGET=--quiet
+__MVNW_QUIET_CURL=--silent
+[ "${MVNW_VERBOSE-}" != true ] || __MVNW_QUIET_WGET=--verbose __MVNW_QUIET_CURL=--verbose
+
+if command -v wget >/dev/null; then
+  if [ -z "${MVNW_USERNAME-}" ]; then
+    wget $__MVNW_QUIET_WGET --output-document="$TMP_DOWNLOAD_DIR/$distributionUrlName" "$distributionUrl" ||
+      die "Error al descargar de: $distributionUrl"
+  else
+    wget $__MVNW_QUIET_WGET --user="$MVNW_USERNAME" --password="$MVNW_PASSWORD" --output-document="$TMP_DOWNLOAD_DIR/$distributionUrlName" "$distributionUrl" ||
+      die "Error al descargar de: $distributionUrl"
+  fi
+elif command -v curl >/dev/null; then
+  if [ -z "${MVNW_USERNAME-}" ]; then
+    curl $__MVNW_QUIET_CURL --fail --location --output "$TMP_DOWNLOAD_DIR/$distributionUrlName" "$distributionUrl" ||
+      die "Error al descargar de: $distributionUrl"
+  else
+    curl $__MVNW_QUIET_CURL --fail --location --user "$MVNW_USERNAME:$MVNW_PASSWORD" --output "$TMP_DOWNLOAD_DIR/$distributionUrlName" "$distributionUrl" ||
+      die "Error al descargar de: $distributionUrl"
+  fi
+else
+  die "necesita wget o curl para descargar Maven"
+fi
+
+if [ -n "${distributionSha256Sum-}" ]; then
+  # Validar la suma SHA256
+  verbose "Validando la suma SHA256 del archivo descargado..."
+  sum="$(openssl sha256 -r "$TMP_DOWNLOAD_DIR/$distributionUrlName" | cut -f1 -d\ )"
+  if [ "$sum" != "$distributionSha256Sum" ]; then
+    die "La suma SHA256 del archivo descargado no coincide con la esperada: $distributionSha256Sum"
+  fi
+fi
+
+verbose "Extrayendo archivo descargado a $MAVEN_HOME"
+case "$distributionUrlName" in
+*.zip) unzip -q "$TMP_DOWNLOAD_DIR/$distributionUrlName" -d "$TMP_DOWNLOAD_DIR" ;;
+*.tar.gz) tar xzf "$TMP_DOWNLOAD_DIR/$distributionUrlName" -C "$TMP_DOWNLOAD_DIR" ;;
+*) die "El archivo descargado no tiene una extensión reconocida: $distributionUrlName" ;;
+esac
+
+# Mover archivos extraídos a MAVEN_HOME
+mv "$TMP_DOWNLOAD_DIR/"*/ "$MAVEN_HOME" || die "Error al mover archivos extraídos a $MAVEN_HOME"
+verbose "Instalación de Maven completada en $MAVEN_HOME"
+
+# Ejecutar Maven
+exec_maven "$@"
